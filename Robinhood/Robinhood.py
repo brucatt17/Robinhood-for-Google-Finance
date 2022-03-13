@@ -15,6 +15,7 @@ import getpass
 import requests
 import six
 import dateutil
+import urllib
 
 #Application-specific imports
 from . import exceptions as RH_exception
@@ -45,6 +46,8 @@ class Robinhood:
     headers = None
     auth_token = None
     oauth_token = None
+    mfa_required = True
+    client_id = "c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS"
 
     logger = logging.getLogger('Robinhood')
     logger.addHandler(logging.NullHandler())
@@ -82,13 +85,16 @@ class Robinhood:
 
         username = input("Username: ")
         password = getpass.getpass()
+        # mfa_code = input("MFA Code: ")
 
-        return self.login(username=username, password=password)
+        return self.login(username=username, password=password, mfa_code=mfa_code)
 
 
     def login(self,
               username,
-              password):
+              password,
+              device_token,
+			  mfa_code=None):
         """Save and test login info for Robinhood accounts
 
         Args:
@@ -100,14 +106,32 @@ class Robinhood:
 
         """
 
-        fields = {'client_id': 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS',
-        	'expires_in': 86400,
-        	'grant_type': 'password',
-        	'password': password,
-        	'scope': 'internal',
-        	'username': username,
-        }
-        data = fields
+        self.username = username
+        self.password = password
+        self.mfa_code = mfa_code
+        self.device_token = device_token
+        client_id = "c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS"
+        if mfa_code:
+            fields = {
+                'password' : self.password,
+                'username' : self.username,
+                'mfa_code': self.mfa_code,
+                'grant_type': 'password',
+                'client_id': self.client_id,
+                'device_token': self.device_token
+            }
+        else: 
+            fields = {
+                'password' : self.password,
+                'username' : self.username,
+                'grant_type': 'password',
+                'client_id': self.client_id,
+                'device_token':self.device_token
+            }
+        try:
+            data = urllib.urlencode(fields) #py2
+        except:
+            data = urllib.parse.urlencode(fields) #py3
 
         res = self.session.post(endpoints.login(), data=data)
         res = res.json()
